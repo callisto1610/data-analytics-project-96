@@ -1,22 +1,40 @@
 with tab as
-((select ad_id, campaign_id, campaign_name, utm_source, utm_medium, utm_campaign, utm_content, campaign_date, daily_spent from ya_ads ya)
-union all
-(select ad_id, campaign_id, campaign_name, utm_source, utm_medium, utm_campaign, utm_content, campaign_date, daily_spent from vk_ads va))
-
-select s.visitor_id,
-	   s.visit_date, 
-	   tab.utm_source, 
-	   tab.utm_medium, 
-	   tab.utm_campaign, 
-	   l.lead_id, 
-	   l.created_at, 
-	   l.amount, 
-	   l.closing_reason,
-	   l.status_id
+(select distinct on(visitor_id) 
+					visitor_id,
+					visit_date,
+					source as utm_source,
+					medium as utm_medium,
+					campaign as utm_campaign
 from sessions s
-left join tab 
-on s.source = tab.utm_source and s.medium = tab.utm_medium and s.campaign = tab.utm_campaign and s.content = tab.utm_content
+where medium in ('cpc', 'cpm', 'cpa', 'youtube', 'cpp', 'tg', 'social')
+order by visitor_id , visit_date desc)
+
+select tab.visitor_id,
+		tab.visit_date,
+		tab.utm_source,
+		tab.utm_medium,
+		tab.utm_campaign,
+		case 
+			when tab.visit_date <= l.created_at then l.lead_id
+			else NULL			
+		end as lead_id,
+		case 
+			when tab.visit_date <= l.created_at then l.created_at
+			else NULL			
+		end as created_at,
+		case 
+			when tab.visit_date <= l.created_at then l.amount
+			else NULL			
+		end as amount,
+		case 
+			when tab.visit_date <= l.created_at then l.closing_reason
+			else NULL			
+		end as closing_reason,
+		case 
+			when tab.visit_date <= l.created_at then l.status_id
+			else NULL			
+		end as status_id
+from tab
 left join leads l 
-on s.visitor_id = l.visitor_id 
-where s.source like '_k' or s.source like '_andex' and l.created_at >= s.visit_date
-order by l.amount desc nulls last, s.visit_date asc, tab.utm_source ASC, tab.utm_medium ASC, tab.utm_campaign ASC;
+on l.visitor_id = tab.visitor_id
+order by amount desc nulls last, visit_date, utm_source, utm_medium, utm_campaign;
