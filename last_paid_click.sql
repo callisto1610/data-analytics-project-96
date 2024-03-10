@@ -1,13 +1,12 @@
 with tab as
-(select distinct on(visitor_id) 
-					visitor_id,
-					visit_date,
-					source as utm_source,
-					medium as utm_medium,
-					campaign as utm_campaign
+(select distinct on(visitor_id) visitor_id,
+	   max(visit_date) as visit_date,
+	   source as utm_source,
+	   medium as utm_medium,
+	   campaign as utm_campaign
 from sessions s
 where medium in ('cpc', 'cpm', 'cpa', 'youtube', 'cpp', 'tg', 'social')
-order by visitor_id , visit_date desc)
+group by visitor_id, utm_source, utm_medium, utm_campaign)
 
 select tab.visitor_id,
 		tab.visit_date,
