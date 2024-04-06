@@ -48,8 +48,8 @@ union all
 (select ad_id, campaign_id, campaign_name, utm_source, utm_medium, utm_campaign, utm_content, campaign_date, daily_spent from vk_ads va)),
 
 tab3 as
-(select tab1.visitor_id, tab1.visit_date, tab1.utm_source, tab1.utm_medium, tab1.utm_campaign, tab1.utm_content, tab1.lead_id, 
-tab1.created_at, tab1.amount, tab1.closing_reason, tab1.status_id, tab2.ad_id, tab2.campaign_id, tab2.campaign_name, tab2.campaign_date, tab2.daily_spent
+(select tab1.visitor_id, date(tab1.visit_date) as visit_date, tab1.utm_source, tab1.utm_medium, tab1.utm_campaign, tab1.utm_content, tab1.lead_id, 
+date(tab1.created_at) as created_at, tab1.amount, tab1.closing_reason, tab1.status_id, tab2.ad_id, tab2.campaign_id, tab2.campaign_name, date(tab2.campaign_date) as campaign_date, tab2.daily_spent
 from tab1
 left join tab2
 on tab1.utm_source = tab2.utm_source and tab1.utm_medium = tab2.utm_medium and tab1.utm_campaign = tab2.utm_campaign and tab1.utm_content = tab2.utm_content),
