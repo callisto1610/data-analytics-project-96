@@ -83,7 +83,7 @@ group by visit_date,
 		status_id
 having status_id = 142)
 
-select tab4.visit_date, tab4.utm_source, tab4.utm_medium, tab4.utm_campaign, tab4.visitors_count, tab4.total_cost, tab4.leads_count,
+select tab4.visit_date, tab4.visitors_count, tab4.utm_source, tab4.utm_medium, tab4.utm_campaign, tab4.total_cost, tab4.leads_count,
 		tab5.purchases_count, tab5.revenue
 from tab4
 left join tab5
