@@ -4,7 +4,7 @@ with tab1 as
        source as utm_source,
        medium as utm_medium,
        campaign as utm_campaign,
-       row_number() over (partition by visitor_id order by visit_date) as rn
+       row_number() over (partition by visitor_id order by visit_date desc) as rn
 from sessions s
 where medium in ('cpc', 'cpm', 'cpa', 'youtube', 'cpp', 'tg', 'social')),
 
@@ -77,7 +77,7 @@ tab5 as
        tab4.daily_spent
 from tab2
 left join tab4
-on tab2.utm_source = tab4.utm_source and tab2.utm_medium = tab4.utm_medium and tab2.utm_campaign = tab4.utm_campaign)
+on tab2.utm_source = tab4.utm_source and tab2.utm_medium = tab4.utm_medium and tab2.utm_campaign = tab4.utm_campaign and tab2.created_at = tab4.date)
 
 select  visit_date,
         COUNT(visitor_id) as visitors_count,
