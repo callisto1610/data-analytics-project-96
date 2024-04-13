@@ -11,7 +11,7 @@ where medium in ('cpc', 'cpm', 'cpa', 'youtube', 'cpp', 'tg', 'social')),
 
 tab as
 (select visitor_id,
-       date(visit_date) as visit_date,
+       visit_date,
        utm_source,
        utm_medium,
        utm_campaign
@@ -20,7 +20,7 @@ where rn = 1),
 
 tab2 as
 (select  tab.visitor_id,
-		tab.visit_date,
+		date(tab.visit_date) as visit_date,
 		tab.utm_source,
 		tab.utm_medium,
 		tab.utm_campaign,
@@ -47,7 +47,7 @@ tab2 as
 from tab
 left join leads l 
 on l.visitor_id = tab.visitor_id
-order by amount desc nulls last, visit_date, utm_source, utm_medium, utm_campaign),
+order by amount desc nulls last, date(visit_date), utm_source, utm_medium, utm_campaign),
 
 tab3 as
 ((select ad_id, campaign_id, campaign_name, utm_source, utm_medium, utm_campaign, utm_content, date(campaign_date) as date, daily_spent from ya_ads ya)
@@ -77,14 +77,14 @@ tab5 as
        tab4.daily_spent
 from tab2
 left join tab4
-on tab2.utm_source = tab4.utm_source and tab2.utm_medium = tab4.utm_medium and tab2.utm_campaign = tab4.utm_campaign and tab2.created_at = tab4.date)
+on tab2.utm_source = tab4.utm_source and tab2.utm_medium = tab4.utm_medium and tab2.utm_campaign = tab4.utm_campaign and tab2.visit_date = tab4.date)
 
 select  visit_date,
         COUNT(visitor_id) as visitors_count,
 		utm_source,
 		utm_medium,
 		utm_campaign,
-		SUM(daily_spent) as total_cost,
+		daily_spent as total_cost,
 		COUNT(lead_id) as leads_count,
 		COUNT(lead_id) filter (where status_id = 142) as purchases_count,
 		SUM(amount) filter (where status_id = 142) as revenue
@@ -92,5 +92,6 @@ from tab5
 group by visit_date,
 		utm_source,
 		utm_medium,
-		utm_campaign
+		utm_campaign,
+		daily_spent
 order by revenue desc nulls last, visit_date, visitors_count desc, utm_source, utm_medium, utm_campaign
