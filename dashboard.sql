@@ -1,81 +1,95 @@
 /* Сколько у нас пользователей заходят на сайт с разбивкой по дням? */
 
-select distinct
+
+select
     COUNT(visitor_id) as visitor_number,
     TO_CHAR(visit_date, 'YYYY-MM-DD') as day_number
 from sessions
 group by day_number
 order by day_number;
 
+
 /* Какие каналы их приводят на сайт? Хочется видеть по дням/неделям/месяцам */
+
 
 with tab as (
     select
         source,
-        count(visitor_id) as visitors_number,
-        extract(month from min(visit_date)) as month,
-        extract(week from min(visit_date)) as week,
-        extract(day from min(visit_date)) as day
+        COUNT(visitor_id) as visitors_number,
+        EXTRACT(month from MIN(visit_date)) as month1,
+        EXTRACT(week from MIN(visit_date)) as week1,
+        EXTRACT(day from MIN(visit_date)) as day1
     from sessions
     group by source
 )
 
 select
     source,
-    month,
-    week,
-    day,
-    sum(visitors_number) as visitor_number
+    month1,
+    week1,
+    day1,
+    SUM(visitors_number) as visitor_number
 from tab
-group by source, month, week, day
+group by source, month1, week1, day1
 order by visitor_number desc;
 
 
 /* Сколько лидов к нам приходят? */
 
+
 select
-    count(lead_id) as number_of_leads,
-    date(created_at) as day
+    COUNT(lead_id) as number_of_leads,
+    DATE(created_at) as day1
 from leads
-group by day
-order by day
+group by day1
+order by day1
 
-/* Какая конверсия из клика в лид? */
+with tab1 as (
+    select
+        count(lead_id) as leads_count,
+        date(created_at) as day1
+    from leads
+    group by day1
+),
 
-with tab1 as
-(select count(lead_id) as leads_count,
-       date(created_at) as day
-from leads l
-group by day),
+tab2 as (
+    select
+        count(visitor_id) as clicks,
+        date(visit_date) as day2
+    from sessions
+    group by day2
+)
 
-
-tab2 as 
-(select count(visitor_id) as clicks,
-       date(visit_date) as day
-from sessions s
-group by day)
-
-select round(tab1.leads_count * 100.00 / tab2.clicks, 1) as clicks_to_lead_conversion,
-       tab1.day
+select
+    tab1.day1,
+    round(
+        tab1.leads_count * 100.00 / tab2.clicks, 1
+    ) as clicks_to_lead_conversion
 from tab1
 inner join tab2
-on tab1.day = tab2.day
-order by tab1.day
+    on tab1.day1 = tab2.day2
+order by tab1.day1
+
 
 /* Какая конверсия из лида в оплату? */
 
-with tab as
-(select count(lead_id) as leads_count,
-        count(lead_id) filter (where amount <> 0) as payment_count,
-       date(created_at) as day
-from leads l
-group by day)
+with tab as (
+    select
+        count(lead_id) as leads_count,
+        count(lead_id) filter (where amount <> 0) as
+        payment_count,
+        date(created_at) as day1
+    from leads
+    group by day1
+)
 
-select round(payment_count * 100.00 / leads_count, 1) as lead_to_payment_conversion,
-       day
+select
+    day1,
+    round(
+        payment_count * 100.00 / leads_count, 1
+    ) as lead_to_payment_conversion
 from tab
-order by day
-
+order by day1
 
 
 /* Сколько мы тратим по разным каналам в динамике? */
@@ -133,7 +147,7 @@ order by visit_date
 /* Есть ли окупаемые каналы? Если да, то какие? */
 
 with tab as (
-    select distinct on (visitor_id)
+    select
         visitor_id,
         source as utm_source,
         medium as utm_medium,
@@ -171,10 +185,10 @@ tab1 as (
         on tab.visitor_id = l.visitor_id
     order by
         amount desc nulls last,
-        visit_date asc,
-        utm_source asc,
-        utm_medium asc,
-        utm_campaign asc
+        tab.visit_date asc,
+        tab.utm_source asc,
+        tab.utm_medium asc,
+        tab.utm_campaign asc
 ),
 
 tab2 as (
@@ -211,7 +225,7 @@ tab3 as (
 
 tab4 as (
     select
-        tab2.last_date as date,
+        tab2.last_date as date1,
         tab2.utm_source,
         tab2.utm_medium,
         tab2.utm_campaign,
@@ -242,7 +256,6 @@ order by profit asc
 cpl = total_cost / leads_count
 cppu = total_cost / purchases_count
 roi = (revenue - total_cost) / total_cost * 100% */
-
 
 with tab1 as (
     select
@@ -280,10 +293,10 @@ tab3 as (
     select
         COUNT(lead_id) as leads_count,
         COUNT(lead_id) filter (where status_id = 142) as purchase_count,
-        DATE(created_at) as date,
+        DATE(created_at) as date1,
         SUM(amount) as revenue
     from leads
-    group by date
+    group by date1
 ),
 
 
@@ -292,7 +305,7 @@ tab4 as (
         tab1.source,
         tab1.medium,
         tab1.campaign,
-        tab1.day_number as date,
+        tab1.day_number as date2,
         tab2.total_cost / tab1.visitor_number as cpu,
         tab2.total_cost / tab3.leads_count as cpl,
         case
@@ -308,12 +321,12 @@ tab4 as (
             and tab1.campaign = tab2.campaign
             and tab1.day_number = tab2.campaign_date
     left join tab3
-        on tab1.day_number = tab3.date
-    order by date
+        on tab1.day_number = tab3.date1
+    order by tab1.day_number
 )
 
 select
-    date,
+    date2,
     source,
     medium,
     campaign,
@@ -323,18 +336,18 @@ select
     COALESCE(roi, 0) as roi
 from tab4
 where cpu != 0 and cpl != 0 and cppu != 0 and roi != 0
-order by source, date;
+order by source, dat2;
 
 
 /* Можно посчитать за сколько дней с момента перехода по рекламе закрывается 90% лидов. */
 
 with tab as (
-    select distinct on (visitor_id)
+    select
         visitor_id,
         source as utm_source,
         medium as utm_medium,
         campaign as utm_campaign,
-        min(visit_date) as visit_date
+        MIN(visit_date) as visit_date
     from sessions
     group by visitor_id, utm_source, utm_medium, utm_campaign
 ),
@@ -359,11 +372,11 @@ tab1 as (
         and l.lead_id is not null
         and tab.visit_date < l.created_at
     order by
-        amount desc nulls first,
-        visit_date asc,
-        utm_source asc,
-        utm_medium asc,
-        utm_campaign asc
+        l.amount desc nulls first,
+        tab.visit_date asc,
+        tab.utm_source asc,
+        tab.utm_medium asc,
+        tab.utm_campaign asc
 ),
 
 tab2 as (
@@ -373,7 +386,7 @@ tab2 as (
         utm_medium,
         utm_campaign,
         lead_id,
-        (date(created_at) - date(visit_date)) as datediff
+        (DATE(created_at) - DATE(visit_date)) as datediff
     from tab1
     where lead_id is not null
 ),
@@ -381,7 +394,7 @@ tab2 as (
 tab3 as (
     select
         datediff,
-        count(lead_id) as lead_count
+        COUNT(lead_id) as lead_count
     from tab2
     group by datediff
     order by datediff
@@ -390,13 +403,13 @@ tab3 as (
 tab4 as (
     select
         datediff,
-        sum(lead_count) over (order by datediff) as closed_leads
+        SUM(lead_count) over (order by datediff) as closed_leads
     from tab3
 )
 
 select
     datediff,
-    round(
-        closed_leads * 100 / (select sum(lead_count) from tab3), 0
+    ROUND(
+        closed_leads * 100 / (select SUM(lead_count) from tab3), 0
     ) as closed_leads_percent
 from tab4
