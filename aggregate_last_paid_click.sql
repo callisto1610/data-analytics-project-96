@@ -6,7 +6,7 @@ with tab1 as (
         medium as utm_medium,
         campaign as utm_campaign,
         row_number()
-            over (partition by visitor_id order by visit_date desc)
+        over (partition by visitor_id order by visit_date desc)
         as rn
     from sessions
     where medium in ('cpc', 'cpm', 'cpa', 'youtube', 'cpp', 'tg', 'social')
@@ -52,9 +52,9 @@ tab2 as (
     order by
         amount desc nulls last,
         date(visit_date),
-        utm_source asc,
-        utm_medium asc,
-        utm_campaign asc
+        tab.utm_source asc,
+        tab.utm_medium asc,
+        tab.utm_campaign asc
 ),
 
 tab3 as (
@@ -68,7 +68,7 @@ tab3 as (
             utm_campaign,
             utm_content,
             daily_spent,
-            date(campaign_date) as date
+            date(campaign_date) as date1
         from ya_ads
     )
     union all
@@ -82,7 +82,7 @@ tab3 as (
             utm_campaign,
             utm_content,
             daily_spent,
-            date(campaign_date) as date
+            date(campaign_date) as date1
         from vk_ads
     )
 ),
@@ -92,10 +92,10 @@ tab4 as (
         utm_source,
         utm_medium,
         utm_campaign,
-        date,
+        date1,
         sum(daily_spent) as daily_spent
     from tab3
-    group by utm_source, utm_medium, utm_campaign, date
+    group by utm_source, utm_medium, utm_campaign, date1
 ),
 
 tab5 as (
@@ -117,7 +117,7 @@ tab5 as (
             tab2.utm_source = tab4.utm_source
             and tab2.utm_medium = tab4.utm_medium
             and tab2.utm_campaign = tab4.utm_campaign
-            and tab2.visit_date = tab4.date
+            and tab2.visit_date = tab4.date1
 )
 
 select
@@ -143,4 +143,4 @@ order by
     visitors_count desc,
     utm_source asc,
     utm_medium asc,
-    utm_campaign asc
+    utm_campaign asc;
