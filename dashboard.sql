@@ -259,85 +259,171 @@ roi = (revenue - total_cost) / total_cost * 100% */
 
 with tab1 as (
     select
-        source,
-        medium,
-        campaign,
-        COUNT(visitor_id) as visitor_number,
-        DATE(visit_date) as day_number
+        visitor_id,
+        visit_date,
+        source as utm_source,
+        medium as utm_medium,
+        campaign as utm_campaign,
+        row_number()
+        over (partition by visitor_id order by visit_date desc)
+        as rn
     from sessions
-    group by day_number, source, medium, campaign
-    order by day_number
+    where medium in ('cpc', 'cpm', 'cpa', 'youtube', 'cpp', 'tg', 'social')
+),
+
+
+tab as (
+    select
+        visitor_id,
+        visit_date,
+        utm_source,
+        utm_medium,
+        utm_campaign
+    from tab1
+    where rn = 1
 ),
 
 tab2 as (
     select
-        utm_source as source,
-        utm_medium as medium,
-        utm_campaign as campaign,
-        DATE(campaign_date) as campaign_date,
-        SUM(daily_spent) as total_cost
-    from vk_ads
-    group by source, medium, campaign, campaign_date
-    union all
-    select
-        utm_source as source,
-        utm_medium as medium,
-        utm_campaign as campaign,
-        DATE(campaign_date) as campaign_date,
-        SUM(daily_spent) as total_cost
-    from ya_ads
-    group by source, medium, campaign, campaign_date
+        tab.visitor_id,
+        tab.utm_source,
+        tab.utm_medium,
+        tab.utm_campaign,
+        date(tab.visit_date) as visit_date,
+        case
+            when tab.visit_date <= l.created_at then l.lead_id
+        end as lead_id,
+        case
+            when tab.visit_date <= l.created_at then l.created_at
+        end as created_at,
+        case
+            when tab.visit_date <= l.created_at then l.amount
+        end as amount,
+        case
+            when tab.visit_date <= l.created_at then l.closing_reason
+        end as closing_reason,
+        case
+            when tab.visit_date <= l.created_at then l.status_id
+        end as status_id
+    from tab
+    left join leads as l
+        on tab.visitor_id = l.visitor_id
+    order by
+        amount desc nulls last,
+        date(visit_date),
+        tab.utm_source asc,
+        tab.utm_medium asc,
+        tab.utm_campaign asc
 ),
 
 tab3 as (
-    select
-        COUNT(lead_id) as leads_count,
-        COUNT(lead_id) filter (where status_id = 142) as purchase_count,
-        DATE(created_at) as date1,
-        SUM(amount) as revenue
-    from leads
-    group by date1
+    (
+        select
+            ad_id,
+            campaign_id,
+            campaign_name,
+            utm_source,
+            utm_medium,
+            utm_campaign,
+            utm_content,
+            daily_spent,
+            date(campaign_date) as date1
+        from ya_ads
+    )
+    union all
+    (
+        select
+            ad_id,
+            campaign_id,
+            campaign_name,
+            utm_source,
+            utm_medium,
+            utm_campaign,
+            utm_content,
+            daily_spent,
+            date(campaign_date) as date1
+        from vk_ads
+    )
 ),
-
 
 tab4 as (
     select
-        tab1.source,
-        tab1.medium,
-        tab1.campaign,
-        tab1.day_number as date2,
-        tab2.total_cost / tab1.visitor_number as cpu,
-        tab2.total_cost / tab3.leads_count as cpl,
-        case
-            when tab3.purchase_count = 0 then 0 else
-                tab2.total_cost / tab3.purchase_count
-        end as cppu,
-        (tab2.total_cost - tab3.revenue) * 100 / tab2.total_cost as roi
-    from tab1
-    left join tab2
+        utm_source,
+        utm_medium,
+        utm_campaign,
+        date1,
+        sum(daily_spent) as daily_spent
+    from tab3
+    group by utm_source, utm_medium, utm_campaign, date1
+),
+
+tab5 as (
+    select
+        tab2.visitor_id,
+        tab2.visit_date,
+        tab2.utm_source,
+        tab2.utm_medium,
+        tab2.utm_campaign,
+        tab2.lead_id,
+        tab2.created_at,
+        tab2.amount,
+        tab2.closing_reason,
+        tab2.status_id,
+        tab4.daily_spent
+    from tab2
+    left join tab4
         on
-            tab1.source = tab2.source
-            and tab1.medium = tab2.medium
-            and tab1.campaign = tab2.campaign
-            and tab1.day_number = tab2.campaign_date
-    left join tab3
-        on tab1.day_number = tab3.date1
-    order by tab1.day_number
-)
+            tab2.utm_source = tab4.utm_source
+            and tab2.utm_medium = tab4.utm_medium
+            and tab2.utm_campaign = tab4.utm_campaign
+            and tab2.visit_date = tab4.date1
+),
+
+tab6 as (
+    select
+        visit_date,
+        utm_source,
+        utm_medium,
+        utm_campaign,
+        daily_spent as total_cost,
+        count(visitor_id) as visitors_count,
+        count(lead_id) as leads_count,
+        count(lead_id) filter (where status_id = 142) as purchases_count,
+        sum(amount) filter (where status_id = 142) as revenue
+    from tab5
+    group by
+    visit_date,
+    utm_source,
+    utm_medium,
+    utm_campaign,
+    daily_spent
+order by
+    revenue desc nulls last,
+    visit_date asc,
+    visitors_count desc,
+    utm_source asc,
+    utm_medium asc,
+    utm_campaign asc)
 
 select
-    date2,
-    source,
-    medium,
-    campaign,
-    COALESCE(cpu, 0) as cpu,
-    COALESCE(cpl, 0) as cpl,
-    COALESCE(cppu, 0) as cppu,
-    COALESCE(roi, 0) as roi
-from tab4
-where cpu != 0 and cpl != 0 and cppu != 0 and roi != 0
-order by source, dat2;
-
+    visit_date,
+    utm_source as source,
+    utm_medium as medium,
+    utm_campaign as campaign,
+    (coalesce(total_cost, 0) / visitors_count) as cpu,
+    case
+        when leads_count = 0 then 0 else
+            coalesce(total_cost, 0) / leads_count
+    end as cpl,
+    case
+        when purchases_count = 0 then 0 else
+            coalesce(total_cost, 0) / purchases_count
+    end as cppu,
+    case
+        when total_cost = 0 then 0 else
+            (coalesce(revenue, 0) - total_cost) * 100 / total_cost
+    end as roi
+from tab6
 
 /* Можно посчитать за сколько дней с момента перехода по рекламе закрывается 90% лидов. */
 
