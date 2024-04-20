@@ -255,7 +255,9 @@ order by profit asc
 /* cpu = total_cost / visitors_count
 cpl = total_cost / leads_count
 cppu = total_cost / purchases_count
-roi = (revenue - total_cost) / total_cost * 100% */
+roi = (revenue - total_cost) / total_cost * 100% 
+При расчете метрик, используйте агрегацию по utm_source. 
+Затем, для более детального анализа, сделайте расчет метрик по source, medium и campaign.*/
 
 with tab1 as (
     select
