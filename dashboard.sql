@@ -42,7 +42,9 @@ select
     DATE(created_at) as day1
 from leads
 group by day1
-order by day1
+order by day1;
+
+/*Какая конверсия из клика в лид?*/
 
 with tab1 as (
     select
@@ -68,7 +70,7 @@ select
 from tab1
 inner join tab2
     on tab1.day1 = tab2.day2
-order by tab1.day1
+order by tab1.day1;
 
 
 /* Какая конверсия из лида в оплату? */
@@ -89,7 +91,7 @@ select
         payment_count * 100.00 / leads_count, 1
     ) as lead_to_payment_conversion
 from tab
-order by day1
+order by day1;
 
 
 /* Сколько мы тратим по разным каналам в динамике? */
@@ -141,7 +143,7 @@ select
 from tab1
 group by visit_date, source, medium, campaign
 having sum(total_cost) > 0
-order by visit_date
+order by visit_date;
 
 
 /* Есть ли окупаемые каналы? Если да, то какие? */
@@ -211,7 +213,7 @@ tab3 as (
         sum(daily_spent) as total_cost
     from vk_ads
     group by utm_source, utm_medium, utm_campaign, campaign_date
-    union
+    union all
     select
         utm_source,
         utm_medium,
@@ -249,7 +251,7 @@ select
     (sum(revenue) - sum(total_cost)) as profit
 from tab4
 group by utm_source, utm_medium, utm_campaign
-order by profit asc
+order by profit asc;
 
 
 /* cpu = total_cost / visitors_count
@@ -425,7 +427,7 @@ select
         when total_cost = 0 then 0 else
             (coalesce(revenue, 0) - total_cost) * 100 / total_cost
     end as roi
-from tab6
+from tab6;
 
 /* Можно посчитать за сколько дней с момента перехода по рекламе закрывается 90% лидов. */
 
@@ -500,4 +502,4 @@ select
     ROUND(
         closed_leads * 100 / (select SUM(lead_count) from tab3), 0
     ) as closed_leads_percent
-from tab4
+from tab4;
