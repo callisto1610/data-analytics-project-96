@@ -48,23 +48,23 @@ order by day1;
 
 with tab1 as (
     select
-        count(lead_id) as leads_count,
-        date(created_at) as day1
+        COUNT(lead_id) as leads_count,
+        DATE(created_at) as day1
     from leads
     group by day1
 ),
 
 tab2 as (
     select
-        count(visitor_id) as clicks,
-        date(visit_date) as day2
+        COUNT(visitor_id) as clicks,
+        DATE(visit_date) as day2
     from sessions
     group by day2
 )
 
 select
     tab1.day1,
-    round(
+    ROUND(
         tab1.leads_count * 100.00 / tab2.clicks, 1
     ) as clicks_to_lead_conversion
 from tab1
@@ -77,17 +77,17 @@ order by tab1.day1;
 
 with tab as (
     select
-        count(lead_id) as leads_count,
-        count(lead_id) filter (where amount <> 0) as
+        COUNT(lead_id) as leads_count,
+        COUNT(lead_id) filter (where amount != 0) as
         payment_count,
-        date(created_at) as day1
+        DATE(created_at) as day1
     from leads
     group by day1
 )
 
 select
     day1,
-    round(
+    ROUND(
         payment_count * 100.00 / leads_count, 1
     ) as lead_to_payment_conversion
 from tab
@@ -101,8 +101,8 @@ with tab as (
         utm_source,
         utm_medium,
         utm_campaign,
-        date(campaign_date) as campaign_date,
-        sum(daily_spent) as total_cost
+        DATE(campaign_date) as campaign_date,
+        SUM(daily_spent) as total_cost
     from vk_ads
     group by utm_source, utm_medium, utm_campaign, campaign_date
     union
@@ -110,8 +110,8 @@ with tab as (
         utm_source,
         utm_medium,
         utm_campaign,
-        date(campaign_date) as campaign_date,
-        sum(daily_spent) as total_cost
+        DATE(campaign_date) as campaign_date,
+        SUM(daily_spent) as total_cost
     from ya_ads
     group by utm_source, utm_medium, utm_campaign, campaign_date
     order by utm_source, utm_medium, utm_campaign, campaign_date
@@ -124,7 +124,7 @@ tab1 as (
         s.medium,
         s.campaign,
         tab.total_cost,
-        date(s.visit_date) as visit_date
+        DATE(s.visit_date) as visit_date
     from sessions as s
     left join tab
         on
@@ -139,10 +139,10 @@ select
     source,
     medium,
     campaign,
-    sum(total_cost) as total_cost
+    SUM(total_cost) as total_cost
 from tab1
 group by visit_date, source, medium, campaign
-having sum(total_cost) > 0
+having SUM(total_cost) > 0
 order by visit_date;
 
 
@@ -154,7 +154,7 @@ with tab as (
         source as utm_source,
         medium as utm_medium,
         campaign as utm_campaign,
-        max(visit_date) as visit_date
+        MAX(visit_date) as visit_date
     from sessions
     where medium in ('cpc', 'cpm', 'cpa', 'youtube', 'cpp', 'tg', 'social')
     group by visitor_id, utm_source, utm_medium, utm_campaign
@@ -198,8 +198,8 @@ tab2 as (
         utm_source,
         utm_medium,
         utm_campaign,
-        date(visit_date) as last_date,
-        coalesce(sum(amount), 0) as revenue
+        DATE(visit_date) as last_date,
+        COALESCE(SUM(amount), 0) as revenue
     from tab1
     group by last_date, utm_source, utm_medium, utm_campaign
 ),
@@ -209,8 +209,8 @@ tab3 as (
         utm_source,
         utm_medium,
         utm_campaign,
-        date(campaign_date) as campaign_date,
-        sum(daily_spent) as total_cost
+        DATE(campaign_date) as campaign_date,
+        SUM(daily_spent) as total_cost
     from vk_ads
     group by utm_source, utm_medium, utm_campaign, campaign_date
     union all
@@ -218,8 +218,8 @@ tab3 as (
         utm_source,
         utm_medium,
         utm_campaign,
-        date(campaign_date) as campaign_date,
-        sum(daily_spent) as total_cost
+        DATE(campaign_date) as campaign_date,
+        SUM(daily_spent) as total_cost
     from ya_ads
     group by utm_source, utm_medium, utm_campaign, campaign_date
     order by utm_source, utm_medium, utm_campaign, campaign_date
@@ -246,9 +246,9 @@ select
     utm_source,
     utm_medium,
     utm_campaign,
-    sum(revenue) as revenue,
-    sum(total_cost) as ad_cost,
-    (sum(revenue) - sum(total_cost)) as profit
+    SUM(revenue) as revenue,
+    SUM(total_cost) as ad_cost,
+    (SUM(revenue) - SUM(total_cost)) as profit
 from tab4
 group by utm_source, utm_medium, utm_campaign
 order by profit asc;
@@ -257,9 +257,7 @@ order by profit asc;
 /* cpu = total_cost / visitors_count
 cpl = total_cost / leads_count
 cppu = total_cost / purchases_count
-roi = (revenue - total_cost) / total_cost * 100% 
-При расчете метрик, используйте агрегацию по utm_source. 
-Затем, для более детального анализа, сделайте расчет метрик по source, medium и campaign.*/
+roi = (revenue - total_cost) / total_cost * 100% */
 
 with tab1 as (
     select
@@ -268,8 +266,8 @@ with tab1 as (
         source as utm_source,
         medium as utm_medium,
         campaign as utm_campaign,
-        row_number()
-        over (partition by visitor_id order by visit_date desc)
+        ROW_NUMBER()
+            over (partition by visitor_id order by visit_date desc)
         as rn
     from sessions
     where medium in ('cpc', 'cpm', 'cpa', 'youtube', 'cpp', 'tg', 'social')
@@ -293,7 +291,7 @@ tab2 as (
         tab.utm_source,
         tab.utm_medium,
         tab.utm_campaign,
-        date(tab.visit_date) as visit_date,
+        DATE(tab.visit_date) as visit_date,
         case
             when tab.visit_date <= l.created_at then l.lead_id
         end as lead_id,
@@ -314,7 +312,7 @@ tab2 as (
         on tab.visitor_id = l.visitor_id
     order by
         amount desc nulls last,
-        date(visit_date),
+        DATE(visit_date),
         tab.utm_source asc,
         tab.utm_medium asc,
         tab.utm_campaign asc
@@ -331,7 +329,7 @@ tab3 as (
             utm_campaign,
             utm_content,
             daily_spent,
-            date(campaign_date) as date1
+            DATE(campaign_date) as date1
         from ya_ads
     )
     union all
@@ -345,7 +343,7 @@ tab3 as (
             utm_campaign,
             utm_content,
             daily_spent,
-            date(campaign_date) as date1
+            DATE(campaign_date) as date1
         from vk_ads
     )
 ),
@@ -356,7 +354,7 @@ tab4 as (
         utm_medium,
         utm_campaign,
         date1,
-        sum(daily_spent) as daily_spent
+        SUM(daily_spent) as daily_spent
     from tab3
     group by utm_source, utm_medium, utm_campaign, date1
 ),
@@ -390,46 +388,48 @@ tab6 as (
         utm_medium,
         utm_campaign,
         daily_spent as total_cost,
-        count(visitor_id) as visitors_count,
-        count(lead_id) as leads_count,
-        count(lead_id) filter (where status_id = 142) as purchases_count,
-        sum(amount) filter (where status_id = 142) as revenue
+        COUNT(visitor_id) as visitors_count,
+        COUNT(lead_id) as leads_count,
+        COUNT(lead_id) filter (where status_id = 142) as purchases_count,
+        SUM(amount) filter (where status_id = 142) as revenue
     from tab5
     group by
-    visit_date,
-    utm_source,
-    utm_medium,
-    utm_campaign,
-    daily_spent
-order by
-    revenue desc nulls last,
-    visit_date asc,
-    visitors_count desc,
-    utm_source asc,
-    utm_medium asc,
-    utm_campaign asc)
+        visit_date,
+        utm_source,
+        utm_medium,
+        utm_campaign,
+        daily_spent
+    order by
+        revenue desc nulls last,
+        visit_date asc,
+        visitors_count desc,
+        utm_source asc,
+        utm_medium asc,
+        utm_campaign asc
+)
 
 select
     visit_date,
     utm_source as source,
     utm_medium as medium,
     utm_campaign as campaign,
-    (coalesce(total_cost, 0) / visitors_count) as cpu,
+    (COALESCE(total_cost, 0) / visitors_count) as cpu,
     case
         when leads_count = 0 then 0 else
-            coalesce(total_cost, 0) / leads_count
+            COALESCE(total_cost, 0) / leads_count
     end as cpl,
     case
         when purchases_count = 0 then 0 else
-            coalesce(total_cost, 0) / purchases_count
+            COALESCE(total_cost, 0) / purchases_count
     end as cppu,
     case
         when total_cost = 0 then 0 else
-            (coalesce(revenue, 0) - total_cost) * 100 / total_cost
+            (COALESCE(revenue, 0) - total_cost) * 100 / total_cost
     end as roi
 from tab6;
 
-/* Можно посчитать за сколько дней с момента перехода по рекламе закрывается 90% лидов. */
+/* Можно посчитать за сколько дней с момента
+перехода по рекламе закрывается 90% лидов. */
 
 with tab as (
     select
