@@ -267,7 +267,7 @@ with tab1 as (
         medium as utm_medium,
         campaign as utm_campaign,
         ROW_NUMBER()
-            over (partition by visitor_id order by visit_date desc)
+        over (partition by visitor_id order by visit_date desc)
         as rn
     from sessions
     where medium in ('cpc', 'cpm', 'cpa', 'youtube', 'cpp', 'tg', 'social')
